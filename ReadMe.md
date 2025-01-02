@@ -1,4 +1,4 @@
-# REST API implmentation in Go 
+# REST API implementation in Go 
 
 ## Item representation
 ```go
