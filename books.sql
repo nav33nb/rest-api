@@ -1,3 +1,14 @@
+-- Postgres Table
+CREATE TABLE books (
+	id int4 NOT NULL,
+	author text NULL,
+	"name" text NULL,
+	price float4 NULL,
+	"year" int4 NULL,
+	CONSTRAINT books_pkey PRIMARY KEY (id)
+);
+
+-- Postgres Entries
 INSERT INTO books (Id, Name, Author, Price, Year) VALUES (1, 'The Great Gatsby', 'F. Scott Fitzgerald', 10.99, 1925);
 INSERT INTO books (Id, Name, Author, Price, Year) VALUES (2, '1984', 'George Orwell', 8.99, 1949);
 INSERT INTO books (Id, Name, Author, Price, Year) VALUES (3, 'To Kill a Mockingbird', 'Harper Lee', 12.50, 1960);

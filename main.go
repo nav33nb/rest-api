@@ -1,46 +1,22 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"log"
-	"net/http"
-	"strconv"
-
-	"github.com/gorilla/mux"
+	"github.com/sirupsen/logrus"
 )
 
-func getBook(httpResponseWriter http.ResponseWriter, httpRequest *http.Request) {
-	vars := mux.Vars(httpRequest)
-	id, _ := strconv.Atoi(vars["id"])
-	log.Println(id)
-	httpResponseWriter.Header().Set("Content-Type", "application/json")
-	for _, b := range Books {
-		if b.Id == id {
-			json.NewEncoder(httpResponseWriter).Encode(b)
-			return
-		}
-	}
-	json.NewEncoder(httpResponseWriter).Encode(nil)
-}
-
-func getAllBooks(httpResponseWriter http.ResponseWriter, _ *http.Request) {
-	log.Println("Endpoint getAllBooks")
-	httpResponseWriter.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(httpResponseWriter).Encode(Books)
-}
-
-func homepage(httpResponseWriter http.ResponseWriter, _ *http.Request) {
-	fmt.Fprintf(httpResponseWriter, "Welcome to Homepage, Check ReadMe for endpoints")
-}
+var Log = logrus.New()
 
 func main() {
-	myRouter := mux.NewRouter().StrictSlash(true)
-	myRouter.HandleFunc("/", homepage)
-	myRouter.HandleFunc("/books/", getAllBooks)
-	myRouter.HandleFunc("/book/{id}", getBook)
+	Log.SetLevel(logrus.DebugLevel)
+	Log.SetFormatter(&logrus.TextFormatter{
+		FullTimestamp: true,
+	})
+	Log.Debug("Inside Main")
 
-	fmt.Println("Serving...")
-	http.ListenAndServe(":12345", myRouter)
-	// databaseConnection()
+	myapp := App{}
+	myapp.initialize()
+	myapp.handleRoutes()
+
+	myapp.run(":12345")
+
 }
