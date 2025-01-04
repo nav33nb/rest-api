@@ -12,9 +12,11 @@ type Book struct {
 ```
 
 ## Endpoints
-- GET `/` home
-- GET `/books` fetch all books
-- POST `/books` add a book
-- PUT `/books` update an existing book
-- DELETE `/books/{id}` delete an existing book
-- GET `/books/{id}` fetch a specific book by id
+| Endpoint             | Description                 |
+| -------------------- | --------------------------- |
+| `GET /`              | home, welcome msg           |
+| `GET /books`         | fetch all books             |
+| `POST /books`        | add a book                  |
+| `PUT /books`         | update an existing book     |
+| `DELETE /books/{id}` | delete an existing book     |
+| `GET /books/{id}`    | fetch a specific book by id |
