@@ -3,7 +3,7 @@
 ## Item representation
 ```go
 type Book struct {
-	Id     int
+	Id     int		//primarykey
 	Name   string
 	Author string
 	Price  float64
@@ -12,8 +12,9 @@ type Book struct {
 ```
 
 ## Endpoints
-- `GET /books` list of all books
-- `GET /book/id` list single book
-- `POST /book` add a book
-- `PUT /book/id` update(overwrite) a book
-- `DELETE /book/id` delete a book
+- GET `/` home
+- GET `/books` fetch all books
+- POST `/books` add a book
+- PUT `/books` update an existing book
+- DELETE `/books/{id}` delete an existing book
+- GET `/books/{id}` fetch a specific book by id

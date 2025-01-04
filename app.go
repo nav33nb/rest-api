@@ -1,7 +1,8 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"encoding/json"
 	"net/http"
 	"os"
 
@@ -15,6 +16,8 @@ type App struct {
 }
 
 func (app *App) initialize() {
+	Log.Infof("Initializing App")
+
 	dbconf := DbConfig{
 		Db_user: "postgres",
 		Db_pass: os.Getenv("PG_PASS"),
@@ -24,12 +27,21 @@ func (app *App) initialize() {
 		Db_args: "sslmode=disable",
 	}
 
-	app.db = dbconf.getConnection()
-	app.router = mux.NewRouter().StrictSlash(true)
+	var err error
+	app.db, err = dbconf.getConnection()
+	if err != nil {
+		Log.Fatalf("application failed to initialise: %v", err)
+		os.Exit(1)
+	}
+	app.router = mux.NewRouter().StrictSlash(false)
 }
 
-func (app *App) run(addr string) {
-	fmt.Printf("Serving... on %v\n", addr)
+func (app *App) close() error {
+	return app.db.Close(context.Background())
+}
+
+func (app *App) runOn(addr string) {
+	Log.Infof("Serving Application on %v", addr)
 	err := http.ListenAndServe(addr, app.router)
 	if err != nil {
 		Log.Fatal(err)
@@ -37,33 +49,83 @@ func (app *App) run(addr string) {
 }
 
 func (app *App) handleRoutes() {
-	app.router.HandleFunc("/", app.getHomepage).Methods("GET")
-	app.router.HandleFunc("/books/", app.getAllBooks).Methods("GET")
-	app.router.HandleFunc("/book/{id}", app.getBook).Methods("GET")
+	Log.Infof("Handling Routes")
 
+	app.router.HandleFunc("/", app.getHomepage).Methods("GET")
+
+	app.router.HandleFunc("/books", app.getBook).Methods("GET")
+	app.router.HandleFunc("/books", app.postBook).Methods("POST")
+	app.router.HandleFunc("/books", app.putBook).Methods("PUT")
+
+	app.router.HandleFunc("/books/{id}", app.deleteBook).Methods("DELETE")
+	app.router.HandleFunc("/books/{id}", app.getBook).Methods("GET")
 }
 
 func (app *App) getHomepage(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Hit GET Endpoint %v, with Request Params %v", r.URL.Path, mux.Vars(r))
 	Log.Debugf("Endpoint %v", r.URL.Path)
-	sendResponse(w, 200, map[string]string{"msg": "Welcome to HomePage"})
-}
-
-func (app *App) getAllBooks(w http.ResponseWriter, r *http.Request) {
-	Log.Debugf("Endpoint %v", r.URL.Path)
-	app.handleBooks(w, r, "all")
+	sendResponse(w, 200, makePayload("Welcome to HomePage"))
 }
 
 func (app *App) getBook(w http.ResponseWriter, r *http.Request) {
-	Log.Debugf("Endpoint %v", r.URL.Path)
-	app.handleBooks(w, r, mux.Vars(r)["id"])
-}
-
-func (app *App) handleBooks(w http.ResponseWriter, r *http.Request, id string) {
-	Log.Debugf("Endpoint %v", r.URL.Path)
-	books, err := app.fetchData(id)
+	Log.Infof("Hit GET Endpoint %v, with Request Params %v, %v", r.URL.Path, mux.Vars(r), r.URL.Query().Get("id"))
+	books, err := fetchData(app.db, mux.Vars(r)["id"])
 	if err != nil {
-		sendError(w, http.StatusInternalServerError, "Server Error in Processing Request")
+		sendError(w, http.StatusInternalServerError, getErrResponse(err))
 		return
 	}
 	sendResponse(w, http.StatusOK, books)
+}
+
+// 1. decode the request body
+// 2. put decoding INTO an object
+// 3. call sql with that object
+func (app *App) postBook(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Hit POST Endpoint %v, with Request Params %v", r.URL.Path, mux.Vars(r))
+
+	var b Book
+	err := json.NewDecoder(r.Body).Decode(&b)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, getErrResponse(err_Parse))
+		Log.Errorf("Skipped record creation: Unable to parse request body: %v", err)
+		return
+	}
+
+	Log.Debugf("POST Request Body %#v", b)
+	err = postData(app.db, b)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, getErrResponse(err))
+		return
+	}
+	sendResponse(w, http.StatusOK, makePayload("record created"))
+}
+
+func (app *App) putBook(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Hit PUT Endpoint %v, with Request Params %v", r.URL.Path, mux.Vars(r))
+
+	var b Book
+	err := json.NewDecoder(r.Body).Decode(&b)
+	if err != nil {
+		sendError(w, http.StatusBadRequest, getErrResponse(err_Parse))
+		return
+	}
+	Log.Debugf("PUT Request Body %#v", b)
+
+	err = putData(app.db, b)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, getErrResponse(err))
+		return
+	}
+	sendResponse(w, http.StatusOK, makePayload("record updated"))
+}
+
+func (app *App) deleteBook(w http.ResponseWriter, r *http.Request) {
+	Log.Infof("Hit DELETE Endpoint %v, with Request Params %v", r.URL.Path, mux.Vars(r))
+	id := mux.Vars(r)["id"]
+	err := deleteData(app.db, id)
+	if err != nil {
+		sendError(w, http.StatusInternalServerError, getErrResponse(err))
+		return
+	}
+	sendResponse(w, http.StatusOK, makePayload("record deleted"))
 }
