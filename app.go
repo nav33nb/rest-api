@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"os"
 
 	"github.com/gorilla/mux"
 	"github.com/jackc/pgx/v5"
@@ -15,24 +14,11 @@ type App struct {
 	db     *pgx.Conn
 }
 
-func (app *App) initialize() {
+func (app *App) initializeWith(dbconf DbConf) {
 	Log.Infof("Initializing App")
 
-	dbconf := DbConfig{
-		Db_user: "postgres",
-		Db_pass: os.Getenv("PG_PASS"),
-		Db_addr: "10.0.0.246",
-		Db_port: "31540",
-		Db_name: "inventory",
-		Db_args: "sslmode=disable",
-	}
-
-	var err error
-	app.db, err = dbconf.getConnection()
-	if err != nil {
-		Log.Fatalf("application failed to initialise: %v", err)
-		os.Exit(1)
-	}
+	app.db = dbconf.getConnection()
+	initDatabase(app.db)
 	app.router = mux.NewRouter().StrictSlash(false)
 }
 
@@ -64,7 +50,7 @@ func (app *App) handleRoutes() {
 func (app *App) getHomepage(w http.ResponseWriter, r *http.Request) {
 	Log.Infof("Hit GET Endpoint %v, with Request Params %v", r.URL.Path, mux.Vars(r))
 	Log.Debugf("Endpoint %v", r.URL.Path)
-	sendResponse(w, 200, makePayload("Welcome to HomePage"))
+	sendResponse(w, 200, makePayload("Welcome to HomePage", nil))
 }
 
 func (app *App) getBook(w http.ResponseWriter, r *http.Request) {
@@ -74,7 +60,7 @@ func (app *App) getBook(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, getErrResponse(err))
 		return
 	}
-	sendResponse(w, http.StatusOK, books)
+	sendResponse(w, http.StatusOK, makePayload("OK: Data Enclosed", books))
 }
 
 // 1. decode the request body
@@ -97,7 +83,7 @@ func (app *App) postBook(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, getErrResponse(err))
 		return
 	}
-	sendResponse(w, http.StatusOK, makePayload("record created"))
+	sendResponse(w, http.StatusCreated, makePayload("record created", nil))
 }
 
 func (app *App) putBook(w http.ResponseWriter, r *http.Request) {
@@ -116,7 +102,7 @@ func (app *App) putBook(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, getErrResponse(err))
 		return
 	}
-	sendResponse(w, http.StatusOK, makePayload("record updated"))
+	sendResponse(w, http.StatusOK, makePayload("record updated", nil))
 }
 
 func (app *App) deleteBook(w http.ResponseWriter, r *http.Request) {
@@ -127,5 +113,5 @@ func (app *App) deleteBook(w http.ResponseWriter, r *http.Request) {
 		sendError(w, http.StatusInternalServerError, getErrResponse(err))
 		return
 	}
-	sendResponse(w, http.StatusOK, makePayload("record deleted"))
+	sendResponse(w, http.StatusOK, makePayload("record deleted", nil))
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -15,7 +16,7 @@ type Book struct {
 	Year   int     `json:"year"`
 }
 
-type DbConfig struct {
+type DbConf struct {
 	Db_user string
 	Db_pass string
 	Db_addr string
@@ -24,14 +25,14 @@ type DbConfig struct {
 	Db_args string
 }
 
-func (d DbConfig) getConnection() (*pgx.Conn, error) {
+func (d DbConf) getConnection() *pgx.Conn {
 	connstring := fmt.Sprintf("postgres://%v:%v@%v:%v/%v?%v", d.Db_user, d.Db_pass, d.Db_addr, d.Db_port, d.Db_name, d.Db_args)
 	Log.Trace(connstring)
 	conn, err := pgx.Connect(context.Background(), connstring)
 	if err != nil {
-		return nil, fmt.Errorf("cannot get dbconnection object: %v", err)
+		Log.Fatalf("application failed to initialise: cannot connect to DB: %v", err)
 	}
-	return conn, err
+	return conn
 }
 
 func fetchData(db *pgx.Conn, id string) ([]Book, error) {
@@ -107,4 +108,15 @@ func deleteData(db *pgx.Conn, id string) error {
 	}
 	Log.Debugf("%v row was deleted", rows)
 	return nil
+}
+
+func initDatabase(conn *pgx.Conn) {
+	sqlcontent, err := os.ReadFile("books.sql")
+	if err != nil {
+		Log.Fatalf("Cannot initiliaze DB for testing, cannot read sql, ABORTING: %v", err)
+	}
+	_, err = conn.Exec(context.Background(), string(sqlcontent))
+	if err != nil {
+		Log.Fatalf("Cannot initiliaze DB for testing, cannot execute sql, ABORTING: %v", err)
+	}
 }

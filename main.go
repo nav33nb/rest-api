@@ -1,17 +1,16 @@
 package main
 
-import "github.com/sirupsen/logrus"
-
-var Log *logrus.Logger
+var Log = initLogger()
 
 func main() {
-	Log = initLogger()
-
+	dbconf := loadDbConf("dev")
 	myapp := App{}
-	myapp.initialize()
-	defer myapp.close()
-
-	myapp.handleRoutes()
 	addr := ":12345"
-	myapp.runOn(addr)
+
+	func() {
+		myapp.initializeWith(dbconf)
+		defer myapp.close()
+		myapp.handleRoutes()
+		myapp.runOn(addr)
+	}()
 }

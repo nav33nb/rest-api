@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/sirupsen/logrus"
 )
@@ -13,7 +14,8 @@ var err_NoMatch = errors.New("NoMatchFound")
 var err_NoId = errors.New("IdRequired")
 var err_Parse = errors.New("ParseError")
 var err_NoEffect = errors.New("NoEffect")
-var err_InvalidId = errors.New("InvalidId")
+
+// var err_InvalidId = errors.New("InvalidId")
 
 func sendError(w http.ResponseWriter, statusCode int, err string) {
 	response := map[string]string{"err": err}
@@ -33,7 +35,7 @@ func sendResponse(w http.ResponseWriter, statusCode int, payload interface{}) {
 
 func initLogger() *logrus.Logger {
 	var Log = logrus.New()
-	Log.SetLevel(logrus.DebugLevel)
+	// Log.SetLevel(logrus.DebugLevel)
 	Log.SetFormatter(&logrus.TextFormatter{
 		FullTimestamp: true,
 	})
@@ -59,10 +61,10 @@ func getErrResponse(err error) string {
 		errstr := fmt.Sprintf("Invalid Request: Unable to decode JSON request body [%v]", err.Error())
 		Log.Error(errstr)
 		return errstr
-	case errors.Is(err, err_InvalidId):
-		errstr := fmt.Sprintf("Invalid ID: Integer >0 Required [%v]", err.Error())
-		Log.Error(errstr)
-		return errstr
+	// case errors.Is(err, err_InvalidId):
+	// 	errstr := fmt.Sprintf("Invalid ID: Integer >0 Required [%v]", err.Error())
+	// 	Log.Error(errstr)
+	// 	return errstr
 	case errors.Is(err, err_NoEffect):
 		errstr := fmt.Sprintf("Request Processed: No changes required [%v]", err.Error())
 		Log.Error(errstr)
@@ -70,6 +72,49 @@ func getErrResponse(err error) string {
 	}
 }
 
-func makePayload(s string) map[string]string {
-	return map[string]string{"msg": s}
+func makePayload(s string, b []Book) map[string]string {
+	res, _ := json.Marshal(b)
+	return map[string]string{
+		"msg":  s,
+		"data": string(res),
+	}
+}
+
+func loadDbConf(kind string) DbConf {
+	switch kind {
+	case "dev":
+		return DbConf{
+			Db_user: "postgres",
+			Db_pass: os.Getenv("PG_PASS"),
+			Db_addr: "10.0.0.246",
+			Db_port: "31540",
+			Db_name: "inventory",
+			Db_args: "sslmode=disable",
+		}
+	case "prod":
+		{
+			return DbConf{
+				Db_user: "postgres",
+				Db_pass: os.Getenv("PG_PASS"),
+				Db_addr: "10.0.0.246",
+				Db_port: "31540",
+				Db_name: "inventory",
+				Db_args: "sslmode=disable",
+			}
+		}
+	case "test":
+		{
+			return DbConf{
+				Db_user: "postgres",
+				Db_pass: os.Getenv("PG_PASS"),
+				Db_addr: "10.0.0.246",
+				Db_port: "31540",
+				Db_name: "inventory",
+				Db_args: "sslmode=disable",
+			}
+		}
+	default:
+		Log.Fatalf("Unknown DB config kind %v", kind)
+		return DbConf{}
+	}
 }
